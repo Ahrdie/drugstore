@@ -19,6 +19,11 @@ type model struct {
 	fgCategoryIdx  int
 	bold           bool
 	italic         bool
+	faint          bool
+	blink          bool
+	strikethrough  bool
+	underline      bool
+	reverse        bool
 }
 
 func (m model) Init() tea.Cmd {
@@ -79,6 +84,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.italic = !m.italic
 		case "b":
 			m.bold = !m.bold
+		case "f":
+			m.faint = !m.faint
+		case "k":
+			m.blink = !m.blink
+		case "s":
+			m.strikethrough = !m.strikethrough
+		case "u":
+			m.underline = !m.underline
+		case "r":
+			m.reverse = !m.reverse
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		}
@@ -195,17 +210,73 @@ func (m model) View() string {
 	if m.italic {
 		selectedColorStyle = selectedColorStyle.Italic(true)
 	}
+	if m.faint {
+		selectedColorStyle = selectedColorStyle.Faint(true)
+	}
+	if m.blink {
+		selectedColorStyle = selectedColorStyle.Blink(true)
+	}
+	if m.strikethrough {
+		selectedColorStyle = selectedColorStyle.Strikethrough(true)
+	}
+	if m.underline {
+		selectedColorStyle = selectedColorStyle.Underline(true)
+	}
+	if m.reverse {
+		selectedColorStyle = selectedColorStyle.Reverse(true)
+	}
 
 	selectedColorExample := selectedColorStyle.Render(" Selected Color Example ")
 
-	// Compose style indicators
-	boldIndicator := ""
-	italicIndicator := ""
+	// Compose style indicators, always show all, faint if not enabled, highlight activation letter
+	indicatorActive := lipgloss.NewStyle().Bold(true)
+	indicatorInactive := lipgloss.NewStyle()
+	indicatorFaint := indicatorInactive.Faint(true)
+	letterActive := lipgloss.NewStyle().Foreground(lipgloss.Color("33")).Bold(true)
+	letterInactive := lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
+
+	boldIndicator := indicatorInactive.Render(" [") + letterInactive.Render("B") + indicatorInactive.Render("old]")
+	italicIndicator := indicatorInactive.Render(" [") + letterInactive.Render("I") + indicatorInactive.Render("talic]")
+	faintIndicator := indicatorInactive.Render(" [") + letterInactive.Render("F") + indicatorInactive.Render("aint]")
+	blinkIndicator := indicatorInactive.Render(" [blin") + letterInactive.Render("k") + indicatorInactive.Render("]")
+	strikethroughIndicator := indicatorInactive.Render(" [") + letterInactive.Render("S") + indicatorInactive.Render("trikethrough]")
+	underlineIndicator := indicatorInactive.Render(" [") + letterInactive.Render("U") + indicatorInactive.Render("nderline]")
+	reverseIndicator := indicatorInactive.Render(" [") + letterInactive.Render("R") + indicatorInactive.Render("everse]")
+
 	if m.bold {
-		boldIndicator = " [BOLD]"
+		boldIndicator = indicatorActive.Render(" [") + letterActive.Render("B") + indicatorActive.Render("old]")
+	} else {
+		boldIndicator = indicatorFaint.Render(" [") + letterInactive.Render("B") + indicatorFaint.Render("old]")
 	}
 	if m.italic {
-		italicIndicator = " [ITALIC]"
+		italicIndicator = indicatorActive.Render(" [") + letterActive.Render("I") + indicatorActive.Render("talic]")
+	} else {
+		italicIndicator = indicatorFaint.Render(" [") + letterInactive.Render("I") + indicatorFaint.Render("talic]")
+	}
+	if m.faint {
+		faintIndicator = indicatorActive.Render(" [") + letterActive.Render("F") + indicatorActive.Render("aint]")
+	} else {
+		faintIndicator = indicatorFaint.Render(" [") + letterInactive.Render("F") + indicatorFaint.Render("aint]")
+	}
+	if m.blink {
+		blinkIndicator = indicatorActive.Render(" [blin") + letterActive.Render("k") + indicatorActive.Render("]")
+	} else {
+		blinkIndicator = indicatorFaint.Render(" [blin") + letterInactive.Render("k") + indicatorFaint.Render("]")
+	}
+	if m.strikethrough {
+		strikethroughIndicator = indicatorActive.Render(" [") + letterActive.Render("S") + indicatorActive.Render("trikethrough]")
+	} else {
+		strikethroughIndicator = indicatorFaint.Render(" [") + letterInactive.Render("S") + indicatorFaint.Render("trikethrough]")
+	}
+	if m.underline {
+		underlineIndicator = indicatorActive.Render(" [") + letterActive.Render("U") + indicatorActive.Render("nderline]")
+	} else {
+		underlineIndicator = indicatorFaint.Render(" [") + letterInactive.Render("U") + indicatorFaint.Render("nderline]")
+	}
+	if m.reverse {
+		reverseIndicator = indicatorActive.Render(" [") + letterActive.Render("R") + indicatorActive.Render("everse]")
+	} else {
+		reverseIndicator = indicatorFaint.Render(" [") + letterInactive.Render("R") + indicatorFaint.Render("everse]")
 	}
 
 	ansiValue := fmt.Sprintf(" BG: %d | FG: %d", bgColor, fgColor)
@@ -215,12 +286,24 @@ func (m model) View() string {
 		mode = "Editing: Foreground"
 	}
 	// Stack preview info and style indicators vertically to the right of the preview
+	styleIndicators0 := italicIndicator + boldIndicator + faintIndicator + blinkIndicator
+	styleIndicators1 := strikethroughIndicator + underlineIndicator + reverseIndicator
 	previewBlock := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		selectedColorExample,
-		italicIndicator+"\n"+ansiValue+"\n"+boldIndicator,
+		ansiValue+"\n"+styleIndicators0+"\n"+styleIndicators1,
 	)
-	return previewBlock + "\n" + mode + "\n\n" + menu + "\n\n↑/↓ to change category, ←/→ to change color, Tab to switch mode, q to quit, b to toggle bold, i to toggle italic"
+	return previewBlock + "\n" + mode + "\n\n" + menu + "\n\n" + highlightCommandsInstruction()
+}
+
+func highlightCommandsInstruction() string {
+	cmdStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("33")).Bold(true)
+	plain := func(s string) string { return lipgloss.NewStyle().Render(s) }
+	return plain("Commands: ") +
+		cmdStyle.Render("↑/↓") + plain(" to change category, ") +
+		cmdStyle.Render("←/→") + plain(" to change color, ") +
+		cmdStyle.Render("Tab") + plain(" to switch mode, ") +
+		cmdStyle.Render("q") + plain(" to quit")
 }
 
 var allColors = func() []int {
