@@ -42,8 +42,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "up":
 			m.category = (m.category - 1 + len(keys)) % len(keys)
+			// Clamp hue to valid range for new category
+			if m.hue >= len(colorRanges[keys[m.category]]) {
+				m.hue = len(colorRanges[keys[m.category]]) - 1
+			}
 		case "down":
 			m.category = (m.category + 1) % len(keys)
+			// Clamp hue to valid range for new category
+			if m.hue >= len(colorRanges[keys[m.category]]) {
+				m.hue = len(colorRanges[keys[m.category]]) - 1
+			}
 		case "left", "shift+left":
 			step := 1
 			if msg.String() == "shift+left" {
@@ -76,9 +84,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.editForeground {
 				m.hue = m.fgColorIdx
 				m.category = m.fgCategoryIdx
+				// Clamp hue to valid range for new category
+				if m.hue >= len(colorRanges[keys[m.category]]) {
+					m.hue = len(colorRanges[keys[m.category]]) - 1
+				}
 			} else {
 				m.hue = m.bgColorIdx
 				m.category = m.bgCategoryIdx
+				// Clamp hue to valid range for new category
+				if m.hue >= len(colorRanges[keys[m.category]]) {
+					m.hue = len(colorRanges[keys[m.category]]) - 1
+				}
 			}
 		case "i":
 			m.italic = !m.italic
